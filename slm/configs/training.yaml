@@ -1,0 +1,68 @@
+# Training configuration
+# Consumed by training/ (pretraining loop) and sft/ (fine-tuning loop).
+
+# --- General ---------------------------------------------------------------
+seed: 42
+device: auto                   # one of: auto, cpu, cuda
+mixed_precision: bf16          # one of: no, fp16, bf16 (matches model.yaml precision)
+gradient_checkpointing: false  # enable to trade compute for memory on larger runs
+
+# --- Pretraining (training/train.py, training/trainer.py) ------------------
+pretraining:
+  batch_size: 32
+  gradient_accumulation_steps: 4   # effective batch size = batch_size * this
+  max_steps: 100000
+  eval_interval_steps: 1000
+  eval_steps: 100                  # number of eval batches per evaluation pass
+  log_interval_steps: 10
+  checkpoint_interval_steps: 2000
+  checkpoint_dir: checkpoints/pretraining
+
+  optimizer:
+    name: adamw
+    learning_rate: 3.0e-4
+    weight_decay: 0.1
+    beta1: 0.9
+    beta2: 0.95
+    eps: 1.0e-8
+
+  scheduler:
+    name: cosine_with_warmup
+    warmup_steps: 2000
+    min_lr_ratio: 0.1               # final LR = learning_rate * min_lr_ratio
+
+  gradient_clipping:
+    max_norm: 1.0
+
+# --- Supervised fine-tuning (sft/train_sft.py) ------------------------------
+sft:
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  num_epochs: 3
+  eval_interval_steps: 200
+  log_interval_steps: 10
+  checkpoint_interval_steps: 500
+  checkpoint_dir: checkpoints/sft
+  init_from_checkpoint: checkpoints/pretraining/latest.pt
+
+  optimizer:
+    name: adamw
+    learning_rate: 2.0e-5
+    weight_decay: 0.01
+    beta1: 0.9
+    beta2: 0.999
+    eps: 1.0e-8
+
+  scheduler:
+    name: linear_with_warmup
+    warmup_steps: 100
+    min_lr_ratio: 0.0
+
+  gradient_clipping:
+    max_norm: 1.0
+
+# --- Logging -----------------------------------------------------------------
+logging:
+  log_dir: logs/training
+  use_tensorboard: true
+  use_csv: true

@@ -1,0 +1,74 @@
+# Data pipeline configuration
+# Consumed by preprocessing/ scripts (collect, clean, filter, deduplicate,
+# split, tokenize, shard) and by scripts/prepare_data.py.
+
+# --- Paths ---------------------------------------------------------------
+paths:
+  raw_dir: data/raw
+  cleaned_dir: data/cleaned
+  deduplicated_dir: data/deduplicated
+  train_dir: data/train
+  validation_dir: data/validation
+  test_dir: data/test
+  shards_dir: data/shards
+  tokenizer_path: tokenizer/tokenizer.json
+
+# --- Collection (preprocessing/collect.py) --------------------------------
+collection:
+  source_type: directory       # one of: directory, jsonl, csv
+  pattern: "*.txt"             # glob pattern, used when source_type=directory
+  text_field: text             # field name, used when source_type=jsonl
+  text_column: text            # column name, used when source_type=csv
+  encoding: utf-8
+
+# --- Cleaning (preprocessing/clean.py) ------------------------------------
+cleaning:
+  strip_html: true
+  normalize_unicode: true
+  remove_control_chars: true
+  collapse_whitespace: true
+  replace_urls_with: null      # e.g. "[URL]" to redact, null to leave as-is
+  min_line_length: 0
+
+# --- Quality filtering (preprocessing/filter.py) --------------------------
+filtering:
+  min_chars: 50
+  max_chars: 200000
+  min_words: 10
+  max_symbol_ratio: 0.3
+  min_alpha_ratio: 0.5
+  max_repeated_line_ratio: 0.5
+
+# --- Deduplication (preprocessing/deduplicate.py) --------------------------
+deduplication:
+  run_exact_dedup: true
+  run_near_dedup: true
+  near_dedup:
+    shingle_size: 5
+    num_perm: 64
+    num_bands: 16
+    similarity_threshold: 0.8
+
+# --- Train/validation/test split (preprocessing/split.py) ------------------
+split:
+  train_ratio: 0.98
+  val_ratio: 0.01
+  test_ratio: 0.01
+  seed: 42
+
+# --- Tokenization + sharding (preprocessing/tokenize.py, shard.py) ---------
+tokenization:
+  eos_token: "<|endoftext|>"
+  shard_size: 1000000          # tokens per shard file
+  shard_prefix: shard
+
+# --- Pretraining dataset (dataset/pretraining_dataset.py) ------------------
+pretraining_dataset:
+  block_size: 2048              # must match configs/model.yaml max_position_embeddings
+  stride: null                  # null -> defaults to block_size (non-overlapping)
+
+# --- Instruction (SFT) dataset (dataset/instruction_dataset.py) ------------
+instruction_dataset:
+  max_length: 1024
+  eos_token: "<|endoftext|>"
+  pad_token: "<pad>"

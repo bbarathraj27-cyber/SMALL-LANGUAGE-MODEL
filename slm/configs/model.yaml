@@ -1,0 +1,19 @@
+# SLM architecture configuration
+# Matches the project's "recommended first version" spec:
+# decoder-only Transformer, ~100M parameters.
+
+vocab_size: 32000
+hidden_size: 768
+num_layers: 12
+num_heads: 12
+# intermediate_size omitted -> auto-computed from hidden_size via SwiGLU formula
+max_position_embeddings: 2048
+rope_theta: 10000.0
+norm_eps: 1.0e-6
+initializer_range: 0.02
+attn_dropout: 0.0
+resid_dropout: 0.0
+embed_dropout: 0.0
+bias: false
+tie_word_embeddings: true
+pad_token_id: null

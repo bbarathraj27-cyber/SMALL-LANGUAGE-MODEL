@@ -1,0 +1,71 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+.Python
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# --- Data (large / regenerable, never commit) ---
+data/raw/
+data/cleaned/
+data/deduplicated/
+data/train/
+data/validation/
+data/test/
+*.jsonl
+*.bin
+*.npy
+*.parquet
+
+# keep folder placeholders
+!data/raw/.gitkeep
+!data/cleaned/.gitkeep
+!data/deduplicated/.gitkeep
+!data/train/.gitkeep
+!data/validation/.gitkeep
+!data/test/.gitkeep
+
+# --- Tokenizer artifacts (regenerable from train_tokenizer.py) ---
+tokenizer/tokenizer.json
+tokenizer/vocab.json
+tokenizer/merges.txt
+
+# --- Checkpoints & logs ---
+checkpoints/
+!checkpoints/.gitkeep
+logs/
+!logs/.gitkeep
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+
+# --- Experiment tracking ---
+wandb/
+mlruns/
+.tensorboard/
+runs/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Env / secrets ---
+.env
+*.key
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb
