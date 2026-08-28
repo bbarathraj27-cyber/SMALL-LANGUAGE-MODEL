@@ -87,7 +87,10 @@ def score_choice(
         input_ids = question_ids + choice_ids
 
     input_tensor = torch.tensor([input_ids], dtype=torch.long, device=device)
-    logits, _ = model(input_tensor)  # (1, seq_len, vocab_size)
+    # model/slm.py's SLM.forward returns a dict with keys "logits",
+    # "loss", "past_key_values" -- not a tuple.
+    output = model(input_tensor)  # (1, seq_len, vocab_size)
+    logits = output["logits"]
 
     # logits[t] predicts token[t+1]; we want log-probs of the choice tokens,
     # so we look at logits at positions (len(question_ids)-1) .. (end-2).

@@ -47,7 +47,11 @@ def compute_dataset_perplexity(
         input_ids = batch["input_ids"].to(device)
         labels = batch["labels"].to(device)
 
-        logits, model_loss = model(input_ids, labels=labels)
+        # model/slm.py's SLM.forward returns a dict with keys
+        # "logits", "loss", "past_key_values" -- not a tuple.
+        output = model(input_ids, labels=labels)
+        logits = output["logits"]
+        model_loss = output["loss"]
         loss = model_loss if model_loss is not None else compute_lm_loss(logits, labels)
 
         if not torch.isfinite(loss):

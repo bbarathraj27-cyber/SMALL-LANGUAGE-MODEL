@@ -87,7 +87,11 @@ class Trainer:
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         with torch.autocast(device_type="cuda" if self.use_amp else "cpu", enabled=self.use_amp):
-            logits, model_loss = self.model(input_ids, labels=labels)
+            # model/slm.py's SLM.forward returns a dict with keys
+            # "logits", "loss", "past_key_values" -- not a tuple.
+            output = self.model(input_ids, labels=labels)
+            logits = output["logits"]
+            model_loss = output["loss"]
             if model_loss is not None:
                 loss = model_loss
             else:

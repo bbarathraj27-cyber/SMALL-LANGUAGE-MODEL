@@ -104,6 +104,56 @@ def build_pretraining_dataloader(
     )
 
 
+def build_pretrain_dataloader(
+    shard_dir: str,
+    block_size: int,
+    batch_size: int,
+    shuffle: bool = True,
+    stride: int | None = None,
+    num_workers: int = 0,
+    drop_last: bool = True,
+    seed: int = 42,
+) -> DataLoader:
+    """Convenience wrapper: builds a pretraining DataLoader directly from
+    a shard directory, without the caller needing to construct a
+    PretrainingDataset by hand first.
+
+    This is the entry point production code (training/train.py,
+    evaluation/evaluate.py) should use, since they only have a shard
+    directory path on hand, not an already-built PretrainingDataset.
+
+    Args:
+        shard_dir: Directory containing manifest.json and shard .bin
+            files, as produced by preprocessing.shard.write_shards.
+        block_size: Number of tokens per training example. Should
+            match the model's max_position_embeddings.
+        batch_size: Number of examples per batch.
+        shuffle: Whether to shuffle example order each epoch.
+        stride: Step size between consecutive examples. Defaults to
+            block_size (non-overlapping blocks).
+        num_workers: Number of subprocess workers for data loading.
+        drop_last: Whether to drop a final incomplete batch.
+        seed: Seed for the shuffle generator, for reproducibility.
+
+    Returns:
+        A configured torch.utils.data.DataLoader.
+
+    Raises:
+        FileNotFoundError: If shard_dir or its manifest.json is missing.
+        ValueError: If batch_size or block_size is not positive, or if
+            the corpus has fewer tokens than block_size.
+    """
+    dataset = PretrainingDataset(shard_dir, block_size=block_size, stride=stride)
+    return build_pretraining_dataloader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        drop_last=drop_last,
+        seed=seed,
+    )
+
+
 def build_instruction_dataloader(
     dataset: InstructionDataset,
     batch_size: int,

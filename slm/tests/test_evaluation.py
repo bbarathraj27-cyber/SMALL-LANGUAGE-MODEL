@@ -31,7 +31,6 @@ from tokenizer.train_tokenizer import train as train_tokenizer
 from tokenizer.tokenizer import SLMTokenizer
 
 from model.slm import SLM, SLMConfig
-from dataset.dataloader import build_pretrain_dataloader
 from training.optimizer import build_optimizer
 from training.trainer import Trainer, TrainerConfig
 
@@ -45,6 +44,31 @@ Paris is the capital of France, a country in Europe.
 Tokyo is the capital of Japan, a country in East Asia.
 The transformer architecture uses attention to relate tokens.
 """ * 20
+
+
+def _build_synthetic_pretrain_dataloader(
+    vocab_size: int, block_size: int, num_examples: int, batch_size: int, shuffle: bool = True
+):
+    """Test-only helper: an in-memory DataLoader of random token blocks.
+
+    Kept local to this test file rather than in dataset/dataloader.py,
+    since that module's build_pretrain_dataloader() reads real,
+    disk-backed shard files (production data) -- a different concern
+    from generating throwaway random data to exercise perplexity/
+    benchmark computation in isolation.
+    """
+    input_ids = torch.randint(0, vocab_size, (num_examples, block_size), dtype=torch.long)
+    labels = input_ids.clone()
+    dataset = torch.utils.data.TensorDataset(input_ids, labels)
+
+    def _collate(batch):
+        ids = torch.stack([item[0] for item in batch])
+        labs = torch.stack([item[1] for item in batch])
+        return {"input_ids": ids, "labels": labs}
+
+    return torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=_collate
+    )
 
 
 class EvalTestBase(unittest.TestCase):
@@ -83,7 +107,7 @@ class EvalTestBase(unittest.TestCase):
 class TestPerplexity(EvalTestBase):
     def test_perplexity_is_finite_and_positive(self):
         model = SLM(self.model_config)
-        loader = build_pretrain_dataloader(
+        loader = _build_synthetic_pretrain_dataloader(
             vocab_size=self.model_config.vocab_size,
             block_size=self.model_config.max_position_embeddings,
             num_examples=32, batch_size=8,
@@ -95,7 +119,7 @@ class TestPerplexity(EvalTestBase):
 
     def test_max_batches_limits_evaluation(self):
         model = SLM(self.model_config)
-        loader = build_pretrain_dataloader(
+        loader = _build_synthetic_pretrain_dataloader(
             vocab_size=self.model_config.vocab_size,
             block_size=self.model_config.max_position_embeddings,
             num_examples=64, batch_size=4,
@@ -105,7 +129,7 @@ class TestPerplexity(EvalTestBase):
 
     def test_invalid_max_batches_rejected(self):
         model = SLM(self.model_config)
-        loader = build_pretrain_dataloader(
+        loader = _build_synthetic_pretrain_dataloader(
             vocab_size=self.model_config.vocab_size,
             block_size=self.model_config.max_position_embeddings,
             num_examples=8, batch_size=4,
@@ -223,7 +247,10 @@ class TestRunBenchmark(EvalTestBase):
         optimizer = build_optimizer(model, learning_rate=1e-2)
         for _ in range(60):
             optimizer.zero_grad()
-            logits, loss = model(input_ids, labels=labels)
+            # model/slm.py's SLM.forward returns a dict, not a tuple.
+            output = model(input_ids, labels=labels)
+            logits = output["logits"]
+            loss = output["loss"]
             loss.backward()
             optimizer.step()
 

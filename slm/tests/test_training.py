@@ -29,7 +29,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 import torch
 
 from model.slm import SLM, SLMConfig
-from dataset.dataloader import build_pretrain_dataloader
 
 from training.loss import compute_lm_loss, compute_perplexity, IGNORE_INDEX
 from training.optimizer import build_optimizer, count_optimized_parameters
@@ -48,6 +47,33 @@ def make_tiny_model():
         tie_word_embeddings=True,
     )
     return SLM(cfg), cfg
+
+
+def _build_synthetic_pretrain_dataloader(
+    vocab_size: int, block_size: int, num_examples: int, batch_size: int, shuffle: bool = True
+):
+    """Test-only helper: an in-memory DataLoader of random token blocks.
+
+    This intentionally does NOT live in dataset/dataloader.py -- that
+    module's build_pretrain_dataloader() reads real, disk-backed shard
+    files (production data), which is a different concern from
+    generating throwaway random data to exercise Trainer mechanics
+    (gradient accumulation, checkpointing, resume) in isolation. Mixing
+    the two into one function/name would make the production dataloader
+    API ambiguous about what it actually expects.
+    """
+    input_ids = torch.randint(0, vocab_size, (num_examples, block_size), dtype=torch.long)
+    labels = input_ids.clone()
+    dataset = torch.utils.data.TensorDataset(input_ids, labels)
+
+    def _collate(batch):
+        ids = torch.stack([item[0] for item in batch])
+        labs = torch.stack([item[1] for item in batch])
+        return {"input_ids": ids, "labels": labs}
+
+    return torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=_collate
+    )
 
 
 class TestLoss(unittest.TestCase):
@@ -244,7 +270,7 @@ class TestTrainer(unittest.TestCase):
         model, cfg = make_tiny_model()
         opt = build_optimizer(model, learning_rate=5e-3)
         sched = build_lr_scheduler(opt, warmup_steps=2, total_steps=max_steps)
-        dataloader = build_pretrain_dataloader(
+        dataloader = _build_synthetic_pretrain_dataloader(
             vocab_size=cfg.vocab_size, block_size=cfg.max_position_embeddings,
             num_examples=64, batch_size=8,
         )
@@ -272,7 +298,7 @@ class TestTrainer(unittest.TestCase):
     def test_gradient_accumulation_steps_correctly(self):
         model, cfg = make_tiny_model()
         opt = build_optimizer(model, learning_rate=1e-3)
-        dataloader = build_pretrain_dataloader(
+        dataloader = _build_synthetic_pretrain_dataloader(
             vocab_size=cfg.vocab_size, block_size=cfg.max_position_embeddings,
             num_examples=64, batch_size=4,
         )
@@ -288,11 +314,11 @@ class TestTrainer(unittest.TestCase):
     def test_evaluate_returns_finite_metrics(self):
         model, cfg = make_tiny_model()
         opt = build_optimizer(model, learning_rate=1e-3)
-        train_loader = build_pretrain_dataloader(
+        train_loader = _build_synthetic_pretrain_dataloader(
             vocab_size=cfg.vocab_size, block_size=cfg.max_position_embeddings,
             num_examples=32, batch_size=8,
         )
-        eval_loader = build_pretrain_dataloader(
+        eval_loader = _build_synthetic_pretrain_dataloader(
             vocab_size=cfg.vocab_size, block_size=cfg.max_position_embeddings,
             num_examples=16, batch_size=8, shuffle=False,
         )
