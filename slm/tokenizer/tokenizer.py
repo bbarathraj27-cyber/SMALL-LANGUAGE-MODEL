@@ -78,6 +78,28 @@ class SLMTokenizer:
     def unk_id(self) -> int:
         return UNK_ID
 
+    # --- HuggingFace-style aliases -----------------------------------
+    # inference/chat.py and scripts/run_inference.py look up
+    # `tokenizer.eos_token_id` (the naming convention used by
+    # HuggingFace's own tokenizers), not the shorter `eos_id`. Both
+    # names are kept so either calling style works; they always return
+    # the same fixed id.
+    @property
+    def pad_token_id(self) -> int:
+        return PAD_ID
+
+    @property
+    def bos_token_id(self) -> int:
+        return BOS_ID
+
+    @property
+    def eos_token_id(self) -> int:
+        return EOS_ID
+
+    @property
+    def unk_token_id(self) -> int:
+        return UNK_ID
+
     def encode(
         self,
         text: str,

@@ -57,7 +57,11 @@ def evaluate_perplexity(
     for batch in loader:
         input_ids = batch["input_ids"].to(device)
         labels = batch["labels"].to(device)
-        logits, model_loss = model(input_ids, labels=labels)
+        # model/slm.py's SLM.forward returns a dict with keys "logits",
+        # "loss", "past_key_values" -- not a tuple.
+        output = model(input_ids, labels=labels)
+        logits = output["logits"]
+        model_loss = output["loss"]
         loss = model_loss if model_loss is not None else compute_lm_loss(logits, labels)
         if not torch.isfinite(loss):
             raise RuntimeError(f"Non-finite eval loss encountered: {loss.item()}")
@@ -94,7 +98,9 @@ def generate_greedy(
     for _ in range(max_new_tokens):
         context = generated[-max_context:]
         input_tensor = torch.tensor([context], dtype=torch.long, device=device)
-        logits, _ = model(input_tensor)
+        # model/slm.py's SLM.forward returns a dict, not a tuple.
+        output = model(input_tensor)
+        logits = output["logits"]
         next_token_logits = logits[0, -1, :]
         next_token = int(torch.argmax(next_token_logits).item())
         generated.append(next_token)
